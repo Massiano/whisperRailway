@@ -1,7 +1,4 @@
-Flask==2.3.3
-openai-whisper==20231117
-setuptools==69.0.0
-
-# CPU-only PyTorch from official wheel index
-torch==2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
-torchaudio==2.1.0+cpu --extra-index-url https://download.pytorch.org/whl/cpu
+flask
+openai-whisper
+torch
+torchaudio
