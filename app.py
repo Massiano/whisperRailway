@@ -1,31 +1,47 @@
 import os
+import tempfile
+import traceback
 from flask import Flask, request, jsonify
 import whisper
-import tempfile
 
 app = Flask(__name__)
 
-# Load model ONCE at startup
-print("Loading Whisper 'small' model...")
-model = whisper.load_model("small")
-print("✅ Ready to transcribe!")
+# Load model ONCE at startup — force CPU
+print("Loading Whisper 'small' model on CPU...")
+model = whisper.load_model("small", device="cpu")
+print("✅ Whisper 'small' model loaded and ready!")
+
+@app.route('/health')
+def health():
+    return jsonify({"status": "ok"})
 
 @app.route('/transcribe', methods=['POST'])
 def transcribe():
     if 'audio' not in request.files:
-        return jsonify({'error': 'No audio file'}), 400
+        return jsonify({'error': 'No audio file provided'}), 400
 
     audio = request.files['audio']
+    temp_path = None
     try:
         # Save to temp file
         with tempfile.NamedTemporaryFile(delete=False, suffix='.wav') as tmp:
-            audio.save(tmp.name)
-            result = model.transcribe(tmp.name)
-            os.unlink(tmp.name)  # cleanup
+            temp_path = tmp.name
+            audio.save(temp_path)
 
+        # Transcribe
+        result = model.transcribe(temp_path, fp16=False)  # fp16=False for CPU stability
         return jsonify({'text': result['text'].strip()})
+
     except Exception as e:
+        print("Transcription error:")
+        traceback.print_exc()
         return jsonify({'error': str(e)}), 500
 
+    finally:
+        # Ensure cleanup
+        if temp_path and os.path.exists(temp_path):
+            os.unlink(temp_path)
+
 if __name__ == '__main__':
-    app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
+    port = int(os.environ.get('PORT', 8000))
+    app.run(host='0.0.0.0', port=port)
